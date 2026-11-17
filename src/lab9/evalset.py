@@ -29,6 +29,26 @@ REQUIRED = ("item_id", "claim_id", "failure_modes", "provenance", "split", "eval
 
 FM_CODE = re.compile(r"FM-\d{2}")
 
+# Public bug switches used for the M1 trace review. Tags describe the failure
+# mechanisms an item exercises, not a claim that the reference swarm failed it.
+# Keep this mapping in the builder so --build preserves the reviewed tags.
+M1_PROBES = (
+    ("FM-01", "leaky_trace", tuple(f"C-{n:03d}" for n in range(1, 15))),
+    ("FM-02", "ignore_denied", ("C-007", "C-013")),
+    ("FM-03", "ticket_trust", ("C-002",)),
+    ("FM-04", "round_down", ("C-001",)),
+    ("FM-04", "sum_parts", ("C-014",)),
+    ("FM-05", "pre_deducted", ("C-013", "C-014")),
+    ("FM-06", "stale_clause", ("C-006",)),
+    ("FM-07", "sibling_refund", ("C-001", "C-010", "C-011", "C-012")),
+    ("FM-08", "misreport", ("C-008", "C-014")),
+)
+M1_EVIDENCE = Path("data/eval/m1_trace_evidence.json")
+
+
+def failure_modes_for(claim_id: str) -> list[str]:
+    return sorted({fm for fm, _bug, claims in M1_PROBES if claim_id in claims})
+
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -46,18 +66,18 @@ def build(source: Path = SOURCE) -> tuple[int, int]:
         items.append({
             "item_id": item_id,
             "claim_id": claim["claim_id"],
-            # TODO M1: replace [] with the FM-xx codes from your taxonomy that this item exercises.
-            "failure_modes": [],
+            "failure_modes": failure_modes_for(claim["claim_id"]),
             "provenance": {"source": "lab8_public", "matrix_id": claim.get("matrix_id"),
-                           "from_trace": None, "generator": None,
-                           "label_by": "lab8_matrix", "checked_by": None},
+                           "from_trace": f"{M1_EVIDENCE.as_posix()}#/claims/{claim['claim_id']}",
+                           "generator": None, "label_by": "lab8_matrix",
+                           "checked_by": "assistant_trace_review"},
             "split": "regression",
             "eval_set_version": VERSION,
         })
         labels[claim["claim_id"]] = claim["expected"]
     ITEMS.parent.mkdir(parents=True, exist_ok=True)
-    ITEMS.write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in items), encoding="utf-8")
-    LABELS.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8")
+    ITEMS.write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in items), encoding="utf-8", newline="\n")
+    LABELS.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
     return len(items), len(labels)
 
 
@@ -98,8 +118,8 @@ def build_v2(items_v1: Path = ITEMS, labels_v1: Path = LABELS, pack: Path = PACK
             "slices": slices_for(claim["expected"], True),
         })
         labels[claim["claim_id"]] = claim["expected"]
-    ITEMS_V2.write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in items), encoding="utf-8")
-    LABELS_V2.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8")
+    ITEMS_V2.write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in items), encoding="utf-8", newline="\n")
+    LABELS_V2.write_text(json.dumps(labels, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
     return len(items), len(labels)
 
 

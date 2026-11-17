@@ -1,0 +1,2 @@
+# Eval set SHA is a hash of bytes; preserve identical JSONL bytes on all OSes.
+*.jsonl text eol=lf
