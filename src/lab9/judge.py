@@ -19,22 +19,34 @@ FLOORS = {"kappa": 0.6, "precision": 0.8, "recall": 0.7}
 
 
 def calibrate(path: Path) -> dict:
-    rows = list(csv.DictReader(path.open(encoding="utf-8")))
+    with path.open(encoding="utf-8") as source:
+        rows = list(csv.DictReader(source))
+    if not rows:
+        raise ValueError("calibration CSV contains no observations")
     human = [r["human"].strip().upper() for r in rows]
     judge = [r["judge"].strip().upper() for r in rows]
     p, r = stats.precision_recall(human, judge)
+    errors = []
     try:
         k = stats.cohen_kappa(human, judge)
-    except ValueError:
+    except ValueError as error:
         k = float("nan")
+        errors.append(str(error))
     cm = stats.confusion(human, judge)
     spec = cm["tn"] / (cm["tn"] + cm["fp"]) if cm["tn"] + cm["fp"] else 0.0
     obs = (cm["tp"] + cm["fp"]) / len(rows)
+    try:
+        corrected = round(stats.rogan_gladen(obs, r, spec), 3)
+    except ValueError as error:
+        corrected = None
+        errors.append(str(error))
     res = {"n": len(rows), "precision": round(p, 3), "recall": round(r, 3), "kappa": round(k, 3),
            "confusion": cm, "observed_fail_rate": round(obs, 3),
-           "corrected_fail_rate": round(stats.rogan_gladen(obs, r, spec), 3),
+           "corrected_fail_rate": corrected, "calibration_errors": errors,
            "disagreements": [x for x, h, j in zip(rows, human, judge) if h != j]}
-    res["passed"] = all(res[m] >= f for m, f in FLOORS.items())   # nan compares False -> fails
+    # Round only for display: e.g. precision 0.7996 must not pass a 0.8 floor.
+    raw = {"precision": p, "recall": r, "kappa": k}
+    res["passed"] = not errors and all(raw[m] >= f for m, f in FLOORS.items())
     return res
 
 
@@ -44,9 +56,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--csv", required=True)
     ap.add_argument("--audit", type=int, default=0, help="print N disagreements to audit by hand")
     args = ap.parse_args(argv)
-    res = calibrate(Path(args.csv))
+    try:
+        res = calibrate(Path(args.csv))
+    except ValueError as error:
+        print(f"FAIL calibration: {error}")
+        return 1
     print(f"n={res['n']} P={res['precision']} R={res['recall']} kappa={res['kappa']} {res['confusion']}")
     print(f"fail rate observed {res['observed_fail_rate']} -> corrected {res['corrected_fail_rate']}")
+    for error in res["calibration_errors"]:
+        print(f"  calibration error: {error}")
     for row in res["disagreements"][: args.audit]:
         print(f"  {row['item_id']} human={row['human']} judge={row['judge']} | {row['reply'][:90]}")
     print("PASS floors" if res["passed"] else "FAIL floors", FLOORS)
