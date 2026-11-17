@@ -67,8 +67,32 @@ def paired_bootstrap(a: Sequence[float], b: Sequence[float], *, n_resamples: int
     """a[i], b[i] = per-item mean over seeds, SAME items, SAME order.
     Return (mean(a)-mean(b), lo, hi) with scipy.stats.bootstrap(paired=True, method="percentile",
     rng=numpy.random.default_rng(rng)). If a == b everywhere return (0.0, 0.0, 0.0)."""
-    # TODO M4
-    raise NotImplementedError
+    import numpy as np
+    from scipy.stats import bootstrap
+
+    x, y = np.asarray(a, dtype=float), np.asarray(b, dtype=float)
+    if x.ndim != 1 or y.ndim != 1 or x.shape != y.shape or not x.size:
+        raise ValueError("paired samples must be nonempty one-dimensional arrays of equal length")
+    if not np.isfinite(x).all() or not np.isfinite(y).all():
+        raise ValueError("paired samples must contain only finite values")
+    if isinstance(n_resamples, bool) or not isinstance(n_resamples, (int, np.integer)) or n_resamples <= 0:
+        raise ValueError("n_resamples must be a positive integer")
+    if not math.isfinite(confidence) or not 0 < confidence < 1:
+        raise ValueError("confidence must be finite and strictly between 0 and 1")
+    difference = x - y
+    delta = float(np.mean(difference))
+    # The empirical paired distribution is constant for identical samples or
+    # a constant per-pair shift, including a single observation.
+    if np.all(difference == difference[0]):
+        return delta, delta, delta
+
+    def mean_difference(left, right, axis=-1):
+        return np.mean(left - right, axis=axis)
+
+    result = bootstrap((x, y), mean_difference, paired=True, vectorized=True,
+                       n_resamples=int(n_resamples), confidence_level=confidence,
+                       method="percentile", rng=np.random.default_rng(rng))
+    return delta, float(result.confidence_interval.low), float(result.confidence_interval.high)
 
 
 def pass_at_k(n: int, c: int, k: int) -> float:
