@@ -32,8 +32,9 @@ def main() -> int:
         "llm": "MockLLM",
         "method": "One public bug switch plus no_override; fresh store for every trial.",
         "review": {"reviewer_type": "assistant", "human_verified": False},
+        "source_hash_normalization": "CRLF normalized to LF for cross-platform text hashes",
         "source_sha256": {
-            path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+            path: hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
             for path in ("data/public_claims.jsonl", "data/public_world_state.json",
                          "lab9/variant_agent.py", "lab8/shapes/swarm_reference.py")
         },

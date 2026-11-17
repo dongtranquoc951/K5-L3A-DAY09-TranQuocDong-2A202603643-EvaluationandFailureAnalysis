@@ -31,7 +31,7 @@ def test_rebuilding_preserves_tags_and_separate_labels(tmp_path, monkeypatch):
 def test_every_tag_has_trace_evidence_and_a_passing_control():
     evidence = json.loads(evalset.M1_EVIDENCE.read_text(encoding="utf-8"))
     for path, digest in evidence["source_sha256"].items():
-        assert hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+        assert hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest() == digest
     covered = set()
     for item in evalset.load_jsonl(evalset.ITEMS):
         group = evidence["claims"][item["claim_id"]]
