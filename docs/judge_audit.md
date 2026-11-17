@@ -50,7 +50,7 @@ Trong bảng, FN = người FAIL / judge PASS; FP = người PASS / judge FAIL. 
 
 1. Chấm tone theo toàn bộ câu, cách xưng hô chuyên nghiệp và ngữ cảnh khiếu nại; tránh ra lệnh, mỉa mai, suồng sã hoặc emoji không phù hợp. Cho phép thuật ngữ nội bộ đã duyệt và lỗi gõ nhỏ không đổi nghĩa; không yêu cầu câu dài hay luôn phải xin lỗi.
 2. Tách helpful thành các tiêu chí cụ thể: trả lời đúng yêu cầu, hỏi đúng thông tin còn thiếu, nêu bước tiếp theo khi cần. Tone được đánh giá riêng; không dùng một nhãn “helpful” tổng hợp để thay tất cả tiêu chí.
-3. Kiểm số tiền, trạng thái, approval và cam kết hành động bằng code đối chiếu ledger/state. Đây là hướng triển khai M3, chưa khẳng định metric mới đã có.
+3. Kiểm số tiền, trạng thái, approval và cam kết hành động bằng code đối chiếu ledger/state. M3 đã bổ sung hai grader ledger/approval và metric `reply_amount_correct`; phạm vi, kết quả và giới hạn được ghi trong [trajectory_audit.md](trajectory_audit.md). Chưa có bộ kiểm ngữ nghĩa tổng quát cho mọi cam kết hành động.
 4. H-081 cần xem lại nguồn và adjudication trước khi sửa nhãn. Bất kỳ bộ nhãn/rubric mới nào cũng cần version riêng, gán nhãn độc lập và calibration lại; các đề xuất trên chưa được chạy bằng một judge mới.
 
 ## Kiểm tra triển khai và tái lập
